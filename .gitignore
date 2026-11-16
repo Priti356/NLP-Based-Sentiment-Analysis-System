@@ -1,4 +1,5 @@
 
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -23,12 +24,12 @@ env/
 .env
 *.env
 
-# Models (large binary files)
+# Models
 models/*.pkl
 models/*.joblib
 models/*.h5
 
-# Data (may contain sensitive info)
+# Data
 data/raw/*.csv
 data/processed/*.csv
 
@@ -59,4 +60,3 @@ airflow/airflow.cfg
 .pytest_cache/
 htmlcov/
 .coverage
-
