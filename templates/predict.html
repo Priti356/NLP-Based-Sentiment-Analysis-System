@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Sentiment Prediction — IntelliSentiment AI{% endblock %}
+{% block content %}
+<div class="container py-5" style="max-width:860px">
+
+  <div class="text-center mb-4">
+    <h2 class="fw-bold"><i class="fa-solid fa-magnifying-glass-chart text-warning me-2"></i>Sentiment Predictor</h2>
+    <p class="text-muted">Enter a customer review to classify its sentiment using NLP + Machine Learning</p>
+  </div>
+
+  <!-- Input Card -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <form id="predictForm" method="POST" action="/predict">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Customer Review</label>
+          <textarea name="text" id="reviewText" class="form-control" rows="5"
+            placeholder="e.g. The product quality is excellent and delivery was very fast. Highly recommend!"
+            required maxlength="5000">{% if input_text %}{{ input_text }}{% endif %}</textarea>
+          <div class="form-text text-end"><span id="charCount">0</span> / 5000 characters</div>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-2">
+          <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-warning fw-semibold px-4" id="submitBtn">
+            <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Analyze Sentiment
+          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('reviewText').value='';updateCount()">
+            <i class="fa-solid fa-xmark me-1"></i>Clear
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Example Reviews -->
+  <div class="mb-4">
+    <p class="text-muted small mb-2"><strong>Try an example:</strong></p>
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-sm btn-outline-success example-btn"
+        data-text="The product quality is excellent and delivery was very fast. I'll definitely buy again!">
+        <i class="fa-solid fa-face-smile me-1"></i>Positive Example
+      </button>
+      <button class="btn btn-sm btn-outline-danger example-btn"
+        data-text="Terrible product. Broke after one day of use. Complete waste of money. Very disappointed.">
+        <i class="fa-solid fa-face-frown me-1"></i>Negative Example
+      </button>
+      <button class="btn btn-sm btn-outline-info example-btn"
+        data-text="It is okay. Nothing special but does the job. Neither great nor terrible.">
+        <i class="fa-solid fa-face-meh me-1"></i>Neutral Example
+      </button>
+    </div>
+  </div>
+
+  <!-- Result Card -->
+  {% if result %}
+  <div class="card border-0 shadow-sm result-card result-{{ result.sentiment }}">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="result-icon">
+          {% if result.sentiment == 'positive' %}
+            <i class="fa-solid fa-face-smile fa-3x text-success"></i>
+          {% elif result.sentiment == 'negative' %}
+            <i class="fa-solid fa-face-frown fa-3x text-danger"></i>
+          {% else %}
+            <i class="fa-solid fa-face-meh fa-3x text-info"></i>
+          {% endif %}
+        </div>
+        <div>
+          <h4 class="fw-bold mb-0">
+            Sentiment:
+            <span class="text-{{ 'success' if result.sentiment=='positive' else ('danger' if result.sentiment=='negative' else 'info') }}">
+              {{ result.sentiment | upper }}
+            </span>
+          </h4>
+          {% if result.confidence %}
+          <p class="mb-0 text-muted">
+            Confidence: <strong>{{ "%.1f"|format(result.confidence * 100) }}%</strong>
+          </p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if result.probabilities %}
+      <hr class="my-3">
+      <p class="fw-semibold mb-2 small">Class Probabilities</p>
+      <div class="d-flex flex-column gap-2">
+        {% for label, prob in result.probabilities.items() %}
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted small" style="width:80px">{{ label | capitalize }}</span>
+          <div class="progress flex-grow-1" style="height:8px">
+            <div class="progress-bar bg-{{ 'success' if label=='positive' else ('danger' if label=='negative' else 'info') }}"
+                 style="width:{{ (prob * 100)|int }}%"></div>
+          </div>
+          <span class="text-muted small" style="width:45px">{{ "%.1f"|format(prob * 100) }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if result.cleaned_text %}
+      <hr class="my-3">
+      <p class="fw-semibold mb-1 small">Preprocessed Text</p>
+      <p class="text-muted small font-monospace bg-light rounded p-2 mb-0">{{ result.cleaned_text }}</p>
+      {% endif %}
+
+      <div class="mt-3 d-flex gap-2">
+        <span class="badge bg-light text-dark border">
+          <i class="fa-solid fa-clock me-1"></i>{{ result.processing_ms }} ms
+        </span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Character counter
+const textarea = document.getElementById("reviewText");
+const charCount = document.getElementById("charCount");
+function updateCount() { charCount.textContent = textarea.value.length; }
+textarea.addEventListener("input", updateCount);
+updateCount();
+
+// Example buttons
+document.querySelectorAll(".example-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    textarea.value = btn.dataset.text;
+    updateCount();
+    textarea.focus();
+  });
+});
+
+// Loading state
+document.getElementById("predictForm").addEventListener("submit", function() {
+  const btn = document.getElementById("submitBtn");
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing…';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }} — IntelliSentiment AI{% endblock %}
+{% block content %}
+<div class="container text-center py-5">
+  <i class="fa-solid fa-triangle-exclamation fa-5x text-warning mb-4"></i>
+  <h1 class="display-4 fw-bold">{{ code }}</h1>
+  <p class="lead text-muted">{{ message }}</p>
+  <a href="/" class="btn btn-warning mt-3"><i class="fa-solid fa-house me-2"></i>Go to Dashboard</a>
+</div>
+{% endblock %}
+

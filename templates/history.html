@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}History — IntelliSentiment AI{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Prediction History</h2>
+      <p class="text-muted mb-0 small">{{ predictions|length }} recent predictions</p>
+    </div>
+    <div class="d-flex gap-2">
+      <select class="form-select form-select-sm" id="filterSentiment" style="width:auto">
+        <option value="">All Sentiments</option>
+        <option value="positive">Positive</option>
+        <option value="negative">Negative</option>
+        <option value="neutral">Neutral</option>
+      </select>
+      <a href="/api/predictions?limit={{ limit }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+        <i class="fa-solid fa-download me-1"></i>JSON
+      </a>
+    </div>
+  </div>
+
+  {% if predictions %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small" id="historyTable">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Review Text</th>
+              <th>Sentiment</th>
+              <th>Confidence</th>
+              <th>Model</th>
+              <th>Time (ms)</th>
+              <th>Predicted At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in predictions %}
+            <tr data-sentiment="{{ p.sentiment }}">
+              <td class="text-muted">{{ loop.index }}</td>
+              <td style="max-width:380px">
+                <span class="text-truncate d-block" title="{{ p.raw_text }}">
+                  {{ p.raw_text[:100] }}{% if p.raw_text|length > 100 %}…{% endif %}
+                </span>
+              </td>
+              <td>
+                <span class="badge sentiment-{{ p.sentiment }}">{{ p.sentiment|capitalize }}</span>
+              </td>
+              <td>
+                {% if p.confidence %}
+                  {{ "%.1f"|format(p.confidence * 100) }}%
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-muted">{{ p.model_used or "—" }}</td>
+              <td class="text-muted">{{ p.processing_ms or "—" }}</td>
+              <td class="text-muted">{{ p.created_at }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center text-muted py-5">
+    <i class="fa-solid fa-inbox fa-3x mb-2 opacity-25"></i>
+    <p class="mb-1">No prediction history yet.</p>
+    <a href="/predict" class="btn btn-sm btn-warning mt-2">Make Your First Prediction</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("filterSentiment").addEventListener("change", function() {
+  const val = this.value;
+  document.querySelectorAll("#historyTable tbody tr").forEach(row => {
+    row.style.display = (!val || row.dataset.sentiment === val) ? "" : "none";
+  });
+});
+</script>
+{% endblock %}
+

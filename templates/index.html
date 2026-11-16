@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — IntelliSentiment AI{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="fw-bold mb-0"><i class="fa-solid fa-gauge-high text-warning me-2"></i>Sentiment Dashboard</h2>
+      <p class="text-muted mb-0 small">Real-time sentiment analysis overview</p>
+    </div>
+    <div class="d-flex gap-2">
+      {% if model_ready %}
+        <span class="badge bg-success px-3 py-2"><i class="fa-solid fa-circle-check me-1"></i>Model: {{ model_name }}</span>
+      {% else %}
+        <span class="badge bg-warning text-dark px-3 py-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>Model Not Trained</span>
+        <a href="/train" class="btn btn-sm btn-warning">Train Now</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+      <div class="card kpi-card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="kpi-icon bg-primary-soft"><i class="fa-solid fa-comments fa-lg text-primary"></i></div>
+          <div>
+            <div class="kpi-value">{{ "{:,}".format(total) }}</div>
+            <div class="kpi-label">Total Reviews Analyzed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card kpi-card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="kpi-icon bg-success-soft"><i class="fa-solid fa-face-smile fa-lg text-success"></i></div>
+          <div>
+            <div class="kpi-value text-success">{{ pos_pct }}%</div>
+            <div class="kpi-label">Positive ({{ "{:,}".format(pos) }})</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card kpi-card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="kpi-icon bg-danger-soft"><i class="fa-solid fa-face-frown fa-lg text-danger"></i></div>
+          <div>
+            <div class="kpi-value text-danger">{{ neg_pct }}%</div>
+            <div class="kpi-label">Negative ({{ "{:,}".format(neg) }})</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+      <div class="card kpi-card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="kpi-icon bg-info-soft"><i class="fa-solid fa-face-meh fa-lg text-info"></i></div>
+          <div>
+            <div class="kpi-value text-info">{{ neu_pct }}%</div>
+            <div class="kpi-label">Neutral ({{ "{:,}".format(neu) }})</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 pb-0">
+          <h6 class="fw-semibold mb-0"><i class="fa-solid fa-chart-pie text-warning me-2"></i>Sentiment Distribution</h6>
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-center" style="min-height:250px">
+          {% if total > 0 %}
+            <canvas id="sentimentDonut" height="230"></canvas>
+          {% else %}
+            <div class="text-center text-muted py-5">
+              <i class="fa-solid fa-chart-pie fa-3x mb-2 opacity-25"></i>
+              <p class="mb-0">No data yet — <a href="/predict">make a prediction</a></p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 pb-0">
+          <h6 class="fw-semibold mb-0"><i class="fa-solid fa-chart-line text-warning me-2"></i>Sentiment Trend (30 Days)</h6>
+        </div>
+        <div class="card-body" style="min-height:250px">
+          <canvas id="trendChart" height="210"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDA Charts (if available) -->
+  {% set chart_exists = [] %}
+  {% for img in ['sentiment_distribution.png','word_frequency.png'] %}
+    {% if (static_path ~ '/images/' ~ img) %}{% endif %}
+  {% endfor %}
+
+  <!-- Model Evaluations -->
+  {% if model_evaluations %}
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0"><i class="fa-solid fa-trophy text-warning me-2"></i>Model Performance</h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Model</th><th>Accuracy</th><th>Precision</th>
+                  <th>Recall</th><th>F1-Score</th><th>ROC-AUC</th><th>Trained At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ev in model_evaluations %}
+                <tr>
+                  <td class="fw-semibold">{{ ev.model_name }}</td>
+                  <td><span class="badge bg-primary">{{ "%.4f"|format(ev.accuracy) }}</span></td>
+                  <td>{{ "%.4f"|format(ev.precision) }}</td>
+                  <td>{{ "%.4f"|format(ev.recall) }}</td>
+                  <td><span class="badge bg-success">{{ "%.4f"|format(ev.f1_score) }}</span></td>
+                  <td>{{ "%.4f"|format(ev.roc_auc) if ev.roc_auc else "—" }}</td>
+                  <td><small class="text-muted">{{ ev.trained_at }}</small></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Recent Predictions -->
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+          <h6 class="fw-semibold mb-0"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Recent Predictions</h6>
+          <a href="/history" class="btn btn-sm btn-outline-secondary">View All</a>
+        </div>
+        <div class="card-body p-0">
+          {% if recent_predictions %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr><th>Review</th><th>Sentiment</th><th>Confidence</th><th>Model</th><th>Time</th></tr>
+              </thead>
+              <tbody>
+                {% for p in recent_predictions %}
+                <tr>
+                  <td style="max-width:350px"><small class="text-truncate d-block">{{ p.raw_text[:120] }}…</small></td>
+                  <td>
+                    <span class="badge sentiment-{{ p.sentiment }}">{{ p.sentiment|capitalize }}</span>
+                  </td>
+                  <td>
+                    {% if p.confidence %}
+                      <div class="progress" style="height:6px;width:80px">
+                        <div class="progress-bar bg-{{ 'success' if p.sentiment=='positive' else ('danger' if p.sentiment=='negative' else 'info') }}"
+                             style="width:{{ (p.confidence * 100)|int }}%"></div>
+                      </div>
+                      <small>{{ "%.1f"|format(p.confidence * 100) }}%</small>
+                    {% else %}—{% endif %}
+                  </td>
+                  <td><small class="text-muted">{{ p.model_used or "—" }}</small></td>
+                  <td><small class="text-muted">{{ p.created_at }}</small></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="text-center text-muted py-5">
+            <i class="fa-solid fa-inbox fa-3x mb-2 opacity-25"></i>
+            <p class="mb-1">No predictions yet.</p>
+            <a href="/predict" class="btn btn-sm btn-warning mt-2">Make Your First Prediction</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const pos={{ pos }}, neg={{ neg }}, neu={{ neu }};
+const trendData = {{ sentiment_trend | tojson }};
+
+// Donut Chart
+if (pos + neg + neu > 0) {
+  const dCtx = document.getElementById("sentimentDonut").getContext("2d");
+  new Chart(dCtx, {
+    type: "doughnut",
+    data: {
+      labels: ["Positive", "Negative", "Neutral"],
+      datasets: [{ data: [pos, neg, neu],
+        backgroundColor: ["#2ecc71","#e74c3c","#3498db"],
+        borderWidth: 2, borderColor: "#fff"
+      }]
+    },
+    options: {
+      cutout: "65%",
+      plugins: { legend: { position: "bottom" } },
+      maintainAspectRatio: false,
+    }
+  });
+}
+
+// Trend Line Chart
+const tCtx = document.getElementById("trendChart").getContext("2d");
+const days  = [...new Set(trendData.map(d=>d.day))].sort();
+const mkSeries = (label) => days.map(day => {
+  const row = trendData.find(d => d.day===day && d.sentiment===label);
+  return row ? row.cnt : 0;
+});
+new Chart(tCtx, {
+  type: "line",
+  data: {
+    labels: days,
+    datasets: [
+      { label:"Positive", data: mkSeries("positive"), borderColor:"#2ecc71", backgroundColor:"rgba(46,204,113,0.1)", tension:0.4, fill:true },
+      { label:"Negative", data: mkSeries("negative"), borderColor:"#e74c3c", backgroundColor:"rgba(231,76,60,0.1)", tension:0.4, fill:true },
+      { label:"Neutral",  data: mkSeries("neutral"),  borderColor:"#3498db", backgroundColor:"rgba(52,152,219,0.1)", tension:0.4, fill:true },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ position:"top" } },
+    scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } }
+  }
+});
+</script>
+{% endblock %}
+

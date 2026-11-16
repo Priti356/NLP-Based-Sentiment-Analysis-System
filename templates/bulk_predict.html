@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Bulk Predict — IntelliSentiment AI{% endblock %}
+{% block content %}
+<div class="container py-5" style="max-width:900px">
+  <div class="text-center mb-4">
+    <h2 class="fw-bold"><i class="fa-solid fa-file-csv text-warning me-2"></i>Bulk CSV Prediction</h2>
+    <p class="text-muted">Upload a CSV file containing reviews and get sentiment predictions for all rows</p>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="alert alert-info d-flex gap-2 py-2 mb-4">
+        <i class="fa-solid fa-circle-info mt-1 flex-shrink-0"></i>
+        <div>
+          <strong>CSV Format:</strong> Your file must have a column containing review text.
+          Default column name is <code>text</code>. You can specify a different column name below.
+          Maximum file size: 16 MB &bull; Maximum rows: 5,000.
+        </div>
+      </div>
+
+      <form id="bulkForm">
+        <div class="row g-3 mb-3">
+          <div class="col-md-8">
+            <label class="form-label fw-semibold">CSV File</label>
+            <input type="file" class="form-control" id="csvFile" accept=".csv" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Text Column Name</label>
+            <input type="text" class="form-control" id="textCol" value="text" placeholder="text">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-warning fw-semibold px-4" id="bulkSubmitBtn">
+          <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Run Bulk Prediction
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingDiv" class="text-center py-4 d-none">
+    <div class="spinner-border text-warning" role="status"></div>
+    <p class="text-muted mt-2">Processing reviews… please wait.</p>
+  </div>
+
+  <!-- Error -->
+  <div id="errorDiv" class="alert alert-danger d-none"></div>
+
+  <!-- Results -->
+  <div id="resultsDiv" class="d-none">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3"><i class="fa-solid fa-chart-pie text-warning me-2"></i>Prediction Summary</h5>
+        <div class="row g-3" id="summaryCards"></div>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 d-flex justify-content-between">
+        <h6 class="fw-semibold mb-0">Sample Predictions (first 20 rows)</h6>
+        <button class="btn btn-sm btn-outline-success" id="downloadBtn" style="display:none">
+          <i class="fa-solid fa-download me-1"></i>Download Results
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 small">
+            <thead class="table-light"><tr id="tableHeader"></tr></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("bulkForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const file = document.getElementById("csvFile").files[0];
+  const textCol = document.getElementById("textCol").value.trim() || "text";
+  if (!file) return;
+
+  document.getElementById("loadingDiv").classList.remove("d-none");
+  document.getElementById("resultsDiv").classList.add("d-none");
+  document.getElementById("errorDiv").classList.add("d-none");
+  const btn = document.getElementById("bulkSubmitBtn");
+  btn.disabled = true;
+
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("text_col", textCol);
+
+  try {
+    const res = await fetch("/bulk-predict", { method:"POST", body:fd });
+    const data = await res.json();
+
+    if (!res.ok) {
+      document.getElementById("errorDiv").textContent = data.error || "An error occurred.";
+      document.getElementById("errorDiv").classList.remove("d-none");
+      return;
+    }
+
+    // Summary cards
+    const colors = { positive:"success", negative:"danger", neutral:"info" };
+    const icons  = { positive:"face-smile", negative:"face-frown", neutral:"face-meh" };
+    let cards = "";
+    for (const [sentiment, count] of Object.entries(data.summary)) {
+      const pct = ((count / data.total_rows) * 100).toFixed(1);
+      cards += `<div class="col-sm-4"><div class="card border-0 bg-${colors[sentiment]||'secondary'} bg-opacity-10 text-center p-3">
+        <i class="fa-solid fa-${icons[sentiment]||'chart-bar'} fa-2x text-${colors[sentiment]||'secondary'} mb-1"></i>
+        <h3 class="fw-bold mb-0">${count}</h3><small>${sentiment} (${pct}%)</small>
+      </div></div>`;
+    }
+    document.getElementById("summaryCards").innerHTML = cards;
+
+    // Sample table
+    if (data.sample && data.sample.length > 0) {
+      const cols = Object.keys(data.sample[0]);
+      document.getElementById("tableHeader").innerHTML = cols.map(c=>`<th>${c}</th>`).join("");
+      document.getElementById("tableBody").innerHTML = data.sample.map(row =>
+        `<tr>${cols.map(c => `<td class="${c==='sentiment'?'fw-semibold text-'+(colors[row[c]]||'secondary'):''}">${String(row[c]||'').substring(0,80)}</td>`).join("")}</tr>`
+      ).join("");
+    }
+
+    document.getElementById("resultsDiv").classList.remove("d-none");
+  } catch (err) {
+    document.getElementById("errorDiv").textContent = "Network error: " + err.message;
+    document.getElementById("errorDiv").classList.remove("d-none");
+  } finally {
+    document.getElementById("loadingDiv").classList.add("d-none");
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-2"></i>Run Bulk Prediction';
+  }
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Train Model — IntelliSentiment AI{% endblock %}
+{% block content %}
+<div class="container py-5" style="max-width:760px">
+  <div class="text-center mb-4">
+    <h2 class="fw-bold"><i class="fa-solid fa-rotate text-warning me-2"></i>Model Training</h2>
+    <p class="text-muted">Trigger the full NLP training pipeline from the browser</p>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="alert alert-info d-flex gap-2 py-2 mb-4">
+        <i class="fa-solid fa-circle-info mt-1 flex-shrink-0"></i>
+        <div>
+          Training runs the complete pipeline: data loading → preprocessing →
+          TF-IDF extraction → model training (LR, NB, SVM) →
+          evaluation → saves best model. This may take 1–5 minutes.
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <h6 class="fw-semibold mb-3">Pipeline Steps</h6>
+        <ol class="list-group list-group-numbered">
+          <li class="list-group-item border-0 py-1"><i class="fa-solid fa-database text-primary me-2"></i>Load dataset (synthetic or uploaded CSV)</li>
+          <li class="list-group-item border-0 py-1"><i class="fa-solid fa-filter text-info me-2"></i>Validate &amp; clean data</li>
+          <li class="list-group-item border-0 py-1"><i class="fa-solid fa-language text-warning me-2"></i>NLP preprocessing (tokenise, lemmatise, remove stopwords)</li>
+          <li class="list-group-item border-0 py-1"><i class="fa-solid fa-chart-pie text-secondary me-2"></i>Exploratory Data Analysis &amp; chart generation</li>
+          <li class="list-group-item border-0 py-1"><i class="fa-solid fa-brain text-success me-2"></i>Train 3 models with cross-validation &amp; hyperparameter tuning</li>
+          <li class="list-group-item border-0 py-1"><i class="fa-solid fa-trophy text-warning me-2"></i>Evaluate all models &amp; select best by Macro F1</li>
+          <li class="list-group-item border-0 py-1"><i class="fa-solid fa-floppy-disk text-primary me-2"></i>Save model, vectoriser &amp; evaluation results</li>
+        </ol>
+      </div>
+
+      <button class="btn btn-warning fw-semibold px-4" id="trainBtn" onclick="startTraining()">
+        <i class="fa-solid fa-play me-2"></i>Start Training Pipeline
+      </button>
+    </div>
+  </div>
+
+  <!-- Progress / Output -->
+  <div id="trainingProgress" class="d-none">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="spinner-border text-warning" role="status"></div>
+          <span class="fw-semibold">Training in progress…</span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" style="width:100%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="trainingResult" class="d-none">
+    <div id="resultAlert" class="alert d-flex gap-2 mb-3">
+      <i class="fa-solid fa-circle-check mt-1 flex-shrink-0" id="resultIcon"></i>
+      <span id="resultMessage"></span>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0">
+        <h6 class="fw-semibold mb-0 font-monospace">Pipeline Output</h6>
+      </div>
+      <div class="card-body p-0">
+        <pre id="trainingOutput" class="bg-dark text-light p-3 rounded-bottom mb-0 small"
+             style="max-height:400px;overflow-y:auto"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function startTraining() {
+  document.getElementById("trainBtn").disabled = true;
+  document.getElementById("trainingProgress").classList.remove("d-none");
+  document.getElementById("trainingResult").classList.add("d-none");
+
+  try {
+    const res  = await fetch("/train", { method:"POST" });
+    const data = await res.json();
+    const alert = document.getElementById("resultAlert");
+    const icon  = document.getElementById("resultIcon");
+    const msg   = document.getElementById("resultMessage");
+
+    if (data.status === "success") {
+      alert.className = "alert alert-success d-flex gap-2 mb-3";
+      icon.className  = "fa-solid fa-circle-check mt-1 flex-shrink-0";
+      msg.textContent = "Training completed successfully! Model is ready for predictions.";
+    } else {
+      alert.className = "alert alert-danger d-flex gap-2 mb-3";
+      icon.className  = "fa-solid fa-circle-xmark mt-1 flex-shrink-0";
+      msg.textContent = data.error || "Training failed. Check the output below.";
+    }
+    document.getElementById("trainingOutput").textContent = data.output || data.error || "";
+    document.getElementById("trainingResult").classList.remove("d-none");
+  } catch (err) {
+    document.getElementById("resultAlert").className = "alert alert-danger d-flex gap-2 mb-3";
+    document.getElementById("resultMessage").textContent = "Network error: " + err.message;
+    document.getElementById("trainingResult").classList.remove("d-none");
+  } finally {
+    document.getElementById("trainingProgress").classList.add("d-none");
+    document.getElementById("trainBtn").disabled = false;
+  }
+}
+</script>
+{% endblock %}
+

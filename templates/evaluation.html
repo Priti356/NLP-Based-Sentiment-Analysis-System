@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Model Evaluation — IntelliSentiment AI{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="mb-4">
+    <h2 class="fw-bold"><i class="fa-solid fa-chart-bar text-warning me-2"></i>Model Evaluation Report</h2>
+    <p class="text-muted mb-0">Detailed performance metrics for all trained classification models</p>
+  </div>
+
+  {% if not evaluations %}
+  <div class="alert alert-warning d-flex gap-2">
+    <i class="fa-solid fa-triangle-exclamation mt-1"></i>
+    <div>No evaluation results found. <a href="/train">Train the models first</a> to see evaluation metrics.</div>
+  </div>
+  {% else %}
+
+  <!-- Metric Cards for Best Model -->
+  {% set best = evaluations[0] %}
+  <div class="alert alert-success d-flex align-items-center gap-2 mb-4">
+    <i class="fa-solid fa-trophy fa-lg"></i>
+    <strong>Best Model: {{ best.model_name }}</strong> — selected based on highest Macro F1-Score
+  </div>
+
+  <div class="row g-3 mb-4">
+    {% set metrics = [
+      ('Accuracy', best.accuracy, 'primary', 'bullseye'),
+      ('Precision', best.precision, 'info', 'crosshairs'),
+      ('Recall', best.recall, 'warning', 'arrows-to-dot'),
+      ('F1-Score', best.f1_score, 'success', 'star'),
+    ] %}
+    {% for label, val, color, icon in metrics %}
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <i class="fa-solid fa-{{ icon }} fa-2x text-{{ color }} mb-2"></i>
+        <h3 class="fw-bold mb-0 text-{{ color }}">{{ "%.4f"|format(val) }}</h3>
+        <small class="text-muted">{{ label }}</small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Comparison Table -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0">
+      <h6 class="fw-semibold mb-0"><i class="fa-solid fa-table text-warning me-2"></i>All Models Comparison</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Model</th><th>Accuracy</th><th>Precision</th>
+              <th>Recall</th><th>Macro F1</th><th>ROC-AUC</th><th>Trained At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ev in evaluations %}
+            <tr class="{{ 'table-success' if loop.first else '' }}">
+              <td class="fw-semibold">
+                {% if loop.first %}<i class="fa-solid fa-trophy text-warning me-1"></i>{% endif %}
+                {{ ev.model_name }}
+              </td>
+              <td>{{ "%.4f"|format(ev.accuracy) }}</td>
+              <td>{{ "%.4f"|format(ev.precision) }}</td>
+              <td>{{ "%.4f"|format(ev.recall) }}</td>
+              <td><strong>{{ "%.4f"|format(ev.f1_score) }}</strong></td>
+              <td>{{ "%.4f"|format(ev.roc_auc) if ev.roc_auc else "—" }}</td>
+              <td><small class="text-muted">{{ ev.trained_at }}</small></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Charts -->
+  {% if charts %}
+  <div class="row g-3 mb-4">
+    {% if charts.model_comparison %}
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0"><i class="fa-solid fa-chart-bar text-warning me-2"></i>Model Performance Comparison</h6>
+        </div>
+        <div class="card-body text-center">
+          <img src="{{ url_for('static', filename=charts.model_comparison) }}"
+               class="img-fluid rounded" alt="Model Comparison" style="max-height:400px">
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% for key in ['confusion_matrix_lr','confusion_matrix_nb','confusion_matrix_svm'] %}
+    {% if charts[key] %}
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center p-2">
+          <img src="{{ url_for('static', filename=charts[key]) }}"
+               class="img-fluid rounded" alt="Confusion Matrix">
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Explanation -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0">
+      <h6 class="fw-semibold mb-0"><i class="fa-solid fa-circle-info text-warning me-2"></i>Model Selection Rationale</h6>
+    </div>
+    <div class="card-body">
+      <p class="mb-2">The best model is selected based on <strong>Macro F1-Score</strong> rather than accuracy alone, because:</p>
+      <ul class="mb-0">
+        <li><strong>Accuracy</strong> can be misleading with imbalanced classes (e.g. more positive than negative reviews).</li>
+        <li><strong>Macro F1</strong> treats all classes equally, penalising models that perform poorly on minority classes.</li>
+        <li><strong>Precision vs. Recall tradeoff</strong> is considered via the F1 harmonic mean.</li>
+        <li><strong>Cross-validation</strong> was used during training to prevent overfitting on the test set.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

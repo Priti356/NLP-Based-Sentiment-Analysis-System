@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}EDA — IntelliSentiment AI{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="mb-4">
+    <h2 class="fw-bold"><i class="fa-solid fa-chart-pie text-warning me-2"></i>Exploratory Data Analysis</h2>
+    <p class="text-muted mb-0">Visual analysis of the sentiment dataset — distributions, word frequencies and trends</p>
+  </div>
+
+  {% if not charts %}
+  <div class="alert alert-warning d-flex gap-2">
+    <i class="fa-solid fa-triangle-exclamation mt-1"></i>
+    <div>EDA charts have not been generated yet. <a href="/train">Run the training pipeline</a> to generate them.</div>
+  </div>
+  {% else %}
+
+  <div class="row g-3">
+    {% if charts.sentiment_distribution %}
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0">Sentiment Distribution</h6>
+        </div>
+        <div class="card-body text-center">
+          <img src="{{ url_for('static', filename=charts.sentiment_distribution) }}" class="img-fluid rounded">
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if charts.review_length %}
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0">Review Length Distribution</h6>
+        </div>
+        <div class="card-body text-center">
+          <img src="{{ url_for('static', filename=charts.review_length) }}" class="img-fluid rounded">
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if charts.word_frequency %}
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0">Top Word Frequencies by Sentiment</h6>
+        </div>
+        <div class="card-body text-center">
+          <img src="{{ url_for('static', filename=charts.word_frequency) }}" class="img-fluid rounded">
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if charts.sentiment_trend %}
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0">Sentiment Trend Over Time</h6>
+        </div>
+        <div class="card-body text-center">
+          <img src="{{ url_for('static', filename=charts.sentiment_trend) }}" class="img-fluid rounded">
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% for key in ['wordcloud_positive','wordcloud_negative','wordcloud_neutral'] %}
+    {% if charts[key] %}
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center p-2">
+          <img src="{{ url_for('static', filename=charts[key]) }}" class="img-fluid rounded">
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
